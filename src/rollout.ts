@@ -48,7 +48,7 @@ export async function runRollout(options: RolloutOptions): Promise<RolloutResult
       } catch (err) {
         if (attempt === 0) {
           firstError = err;
-          logger.debug(`task ${task.id}: runner failed, retrying once (${message(err)})`);
+          logger.debug?.(`task ${task.id}: runner failed, retrying once (${message(err)})`);
         } else {
           const msg = `first attempt: ${message(firstError)}; retry: ${message(err)}`;
           logger.warn(

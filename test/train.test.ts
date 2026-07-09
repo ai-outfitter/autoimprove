@@ -297,3 +297,17 @@ describe('train (resume from state)', () => {
     expect(logger.warns.some((w) => w.includes('not valid JSON'))).toBe(true);
   });
 });
+
+// Regression: a user-supplied logger without optional methods (debug) must
+// not crash the loop — found by the first live smoke run (2026-07-09).
+it('runs with a partial logger lacking debug', async () => {
+  const summary = await train({
+    ...baseOptions,
+    epochs: 1,
+    runner: magicRunner(),
+    model: magicModel(),
+    logger: { info: () => {}, warn: () => {} },
+  });
+  expect(summary.steps).toBeGreaterThan(0);
+  expect(summary.accepts).toBe(1);
+});

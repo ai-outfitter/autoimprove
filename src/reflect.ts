@@ -108,7 +108,7 @@ async function completeEdits(
     if (response.usage) options.onUsage?.(response.usage);
     const edits = parseEditsResponse(response.text);
     if (edits.length === 0 && response.text.trim() !== '[]') {
-      logger.debug(`${stage}: no valid edits parsed from optimizer response`);
+      logger.debug?.(`${stage}: no valid edits parsed from optimizer response`);
     }
     return edits;
   } catch (err) {

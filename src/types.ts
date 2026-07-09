@@ -77,7 +77,7 @@ export interface ModelClient {
 export interface Logger {
   info(message: string): void;
   warn(message: string): void;
-  debug(message: string): void;
+  debug?(message: string): void;
 }
 
 /** Console-backed default logger. `debug` is a no-op. */

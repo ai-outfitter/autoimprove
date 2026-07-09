@@ -48,6 +48,8 @@ export interface TrainState {
   currentSkill: string;
   /** Current skill's score on the validation split. */
   currentScore: number;
+  /** Validation score of the initial skill (absent in pre-0.1.1 state files). */
+  baselineScore?: number;
   bestSkill: string;
   bestScore: number;
   bestStep: number;
@@ -58,6 +60,8 @@ export interface TrainState {
 
 export interface TrainSummary {
   steps: number;
+  /** Validation score of the initial skill, before any accepted edit. */
+  baselineScore: number;
   accepts: number;
   rejects: number;
   skips: number;
@@ -173,6 +177,7 @@ export async function train(options: TrainOptions): Promise<TrainSummary> {
       step: 0,
       currentSkill: options.skill,
       currentScore: baselineScore,
+      baselineScore,
       bestSkill: options.skill,
       bestScore: baselineScore,
       bestStep: 0,
@@ -261,7 +266,7 @@ export async function train(options: TrainOptions): Promise<TrainSummary> {
       const patch = applyEdits(state.currentSkill, selected);
       base.appliedEdits = patch.applied.length;
       for (const s of patch.skipped) {
-        logger.debug(`step ${stepIndex}: skipped edit (${s.reason}): ${JSON.stringify(s.edit)}`);
+        logger.debug?.(`step ${stepIndex}: skipped edit (${s.reason}): ${JSON.stringify(s.edit)}`);
       }
       if (patch.applied.length === 0 || patch.skill === state.currentSkill) {
         await finishStep(
@@ -338,6 +343,7 @@ export async function train(options: TrainOptions): Promise<TrainSummary> {
   for (const r of state.records) counts[r.outcome]++;
   const summary: TrainSummary = {
     steps: state.records.length,
+    baselineScore: state.baselineScore ?? state.records[0]?.baselineScore ?? state.bestScore,
     accepts: counts.accept,
     rejects: counts.reject,
     skips: counts.skip,
@@ -370,7 +376,7 @@ async function finishStep(
   state.records.push(record);
   state.step = record.step + 1;
   await saveState(stateFile, state);
-  logger.debug(`step ${record.step}: ${record.outcome}${record.reason ? ` (${record.reason})` : ''}`);
+  logger.debug?.(`step ${record.step}: ${record.outcome}${record.reason ? ` (${record.reason})` : ''}`);
 }
 
 async function loadState(
