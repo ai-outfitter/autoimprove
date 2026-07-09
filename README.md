@@ -59,7 +59,7 @@ import { train, OpenAICompatClient, type TaskRunner } from 'autoimprove';
 const model = new OpenAICompatClient({
   baseUrl: 'https://api.openai.com/v1',
   apiKey: process.env.OPENAI_API_KEY!,
-  model: 'gpt-4.1',
+  model: 'gpt-5.5',
 });
 
 // Your agent harness: run one task under the skill, score the outcome.
@@ -97,7 +97,7 @@ Swapping the optimizer provider is one line:
 const model = new AnthropicCompatClient({
   baseUrl: 'https://api.anthropic.com',
   apiKey: process.env.ANTHROPIC_API_KEY!,
-  model: 'claude-sonnet-4-5',
+  model: 'claude-sonnet-5',
 });
 ```
 
