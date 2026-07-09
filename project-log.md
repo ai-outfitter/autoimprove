@@ -56,3 +56,46 @@ published, NOT pushed anywhere, no GitHub repo created.
 Deferred (intentionally out of scope for v0.1): meta-skill and
 slow-update variants, task adapters (DeepWork jobs, session
 transcripts), test-split final evaluation helper.
+
+## 2026-07-09: Requirements retrofit (RFC 2119 + pinned tests)
+
+Retrofitted formal requirements discipline onto the finished v0.1.0
+library, mirroring the Outfitter OFTR convention, so future changes to
+normative behavior must go through an explicit requirement amendment
+instead of a silent test edit.
+
+What was added (no production code changed):
+
+- `docs/requirements/AIMP-001-core-loop.md`: 8 requirement sections
+  (AIMP-001.1 failure containment, .2 self-containment, .3 gate
+  integrity, .4 bounded edits, .5 determinism/resume, .6 defensive
+  parsing, .7 client contract, .8 governance), each a numbered list of
+  single-claim RFC 2119 statements.
+- Traceability comments: every test validating a requirement now carries
+  the two-line `THIS TEST VALIDATES A HARD REQUIREMENT (AIMP-001.M.K)` /
+  `YOU MUST NOT MODIFY THIS TEST UNLESS THE REQUIREMENT CHANGES.` pin
+  (wording copied from Outfitter), plus a file-top banner stating the
+  amendment rule: amend AIMP-001 first, then touch the test.
+- Six new tests closing coverage gaps: applied-edits-per-step never
+  exceeds the scheduler budget even when the select model over-returns
+  (train.test.ts); reflection prompts label infra-errored results as
+  INFRASTRUCTURE ERROR (reflect.test.ts); a plain object with a
+  conforming complete() works as ModelClient (clients.test.ts); and
+  package.test.ts pins zero runtime dependencies, the
+  dist/README/LICENSE files allowlist, and prompts-as-embedded-constants
+  (prompts.ts contains no fs access).
+- Root `.deepreview` with two rules: `requirements_rfc2119` (every
+  numbered requirement uses an RFC 2119 keyword, AIMP heading/numbering
+  format) and `pinned_test_amendment` (pinned-test changes require a
+  matching AIMP-001 amendment in the same change).
+
+Findings: no spec violations in the production code; behavior matched
+the documented contract everywhere the requirements probe it. One
+boundary note recorded here for future reference: a pathological custom
+scheduler returning 0 would still see one edit applied, because
+selectEdits floors its budget at 1 — the built-in schedulers guarantee
+>= 1, and AIMP-001.4.6 pins that guarantee, so the requirement set is
+stated in terms of budgets >= 1.
+
+State: 76 vitest tests green (was 70), `tsc --noEmit` clean. Local
+commits only; nothing pushed or published.

@@ -121,6 +121,39 @@ calls.
   a reason. The per-step budget (default 4, cosine floor 2) is the
   textual learning rate.
 
+## Requirements and governance
+
+Formal requirements live in `docs/requirements/AIMP-001-core-loop.md`:
+numbered RFC 2119 requirements (sections `AIMP-001.1` through
+`AIMP-001.8`) covering failure containment, self-containment, gate
+integrity, bounded edits, determinism/resume, defensive parsing, the
+model-client contract, and the governance rules themselves. The format
+mirrors the Outfitter OFTR convention (`### AIMP-NNN.M: Title` sections,
+one RFC 2119 claim per numbered item, stable IDs).
+
+Traceability: every requirement is validated by vitest tests carrying a
+two-line pinned comment immediately before the test:
+
+```ts
+// THIS TEST VALIDATES A HARD REQUIREMENT (AIMP-001.M.K).
+// YOU MUST NOT MODIFY THIS TEST UNLESS THE REQUIREMENT CHANGES.
+```
+
+Amendment rule: amend AIMP-001 FIRST (same change or earlier), then
+update the pinned test. Never edit a pinned test to match new behavior
+without the corresponding requirement amendment. A root `.deepreview`
+enforces both halves: `requirements_rfc2119` reviews requirement-doc
+format (RFC 2119 keyword on every numbered item, sequential section
+IDs), and `pinned_test_amendment` flags pinned-test changes that lack a
+matching AIMP-001 amendment.
+
+Requirement-specific tests added for coverage gaps: budget-cap
+enforcement (`train.test.ts`), infrastructure-error labeling in
+reflection prompts (`reflect.test.ts`), structural `ModelClient`
+usability (`clients.test.ts`), and package self-containment — zero
+runtime deps, `files` allowlist, prompts embedded as constants
+(`package.test.ts`).
+
 ## Planned improvements (not yet built)
 
 - Meta-skill / slow-update variants from the paper (explicitly out of
