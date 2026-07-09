@@ -1,0 +1,61 @@
+requirements_rfc2119:
+  description: "Verify AIMP requirement documents use RFC 2119 keywords on every numbered requirement."
+  match:
+    include:
+      - "docs/requirements/*.md"
+  review:
+    strategy: individual
+    instructions: |
+      Review this requirements document for formal requirement discipline.
+
+      Check that:
+      1. Every numbered requirement item uses at least one RFC 2119 keyword
+         (MUST, MUST NOT, SHALL, SHALL NOT, SHOULD, SHOULD NOT, MAY, REQUIRED,
+         RECOMMENDED, OPTIONAL).
+      2. Requirement section headings follow `### AIMP-NNN.M: Title`, where
+         `AIMP-NNN` matches the filename prefix and `.M` numbering is
+         sequential without gaps.
+      3. The file begins with `# AIMP-NNN: Title` and includes an `## Overview`
+         section before the `## Requirements` section.
+      4. Each numbered item states one verifiable claim; vague or untestable
+         language is flagged.
+      5. Existing requirement IDs are not renumbered or reassigned.
+
+      Output Format:
+      - PASS: The requirements document follows the AIMP format and RFC 2119 discipline.
+      - FAIL: Issues found. List each issue with a line reference and concise description.
+
+pinned_test_amendment:
+  description: "Require an AIMP-001 amendment in the same change when pinned requirement tests are modified."
+  match:
+    include:
+      - "test/**/*.test.ts"
+      - "docs/requirements/AIMP-*.md"
+  review:
+    strategy: all_changed_files
+    additional_context:
+      unchanged_matching_files: true
+    instructions: |
+      Review the changed files for pinned-test governance.
+
+      Tests carrying the two-line traceability comment
+      `THIS TEST VALIDATES A HARD REQUIREMENT (AIMP-NNN.M)` /
+      `YOU MUST NOT MODIFY THIS TEST UNLESS THE REQUIREMENT CHANGES.`
+      are pinned to docs/requirements/AIMP-001-core-loop.md.
+
+      Check that:
+      1. Any modification or deletion of a pinned test is accompanied by a
+         corresponding amendment to the referenced AIMP-001 requirement in the
+         same change. Amend the requirement document FIRST; the test change
+         must match the amended requirement text.
+      2. New tests may be pinned to existing requirements without an
+         amendment; adding a traceability comment to an unchanged test also
+         needs no amendment.
+      3. A changed requirement whose pinned tests still assert the old
+         behavior is flagged as stale coverage.
+      4. Traceability comments reference real requirement IDs that exist in
+         docs/requirements/.
+
+      Output Format:
+      - PASS: Pinned tests and AIMP-001 amendments are consistent in this change.
+      - FAIL: List each pinned test changed without a corresponding AIMP-001 amendment (or stale requirement/test pair) with file and line references.
