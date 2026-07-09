@@ -1,5 +1,14 @@
+// PINNED REQUIREMENT TESTS. Tests below marked with a HARD REQUIREMENT
+// comment validate docs/requirements/AIMP-001-core-loop.md. To change one,
+// amend AIMP-001 FIRST, then update the test in the same change.
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { OpenAICompatClient, AnthropicCompatClient } from '../src/index.js';
+import {
+  OpenAICompatClient,
+  AnthropicCompatClient,
+  reflect,
+  type ModelRequest,
+} from '../src/index.js';
+import { collectLogger } from './helpers.js';
 
 interface Captured {
   url: string;
@@ -24,6 +33,8 @@ afterEach(() => {
 });
 
 describe('OpenAICompatClient', () => {
+  // THIS TEST VALIDATES A HARD REQUIREMENT (AIMP-001.7.1).
+  // YOU MUST NOT MODIFY THIS TEST UNLESS THE REQUIREMENT CHANGES.
   it('posts to chat/completions and parses text and usage', async () => {
     const { captured } = stubFetch(200, {
       choices: [{ message: { content: 'hello there' } }],
@@ -59,6 +70,8 @@ describe('OpenAICompatClient', () => {
 });
 
 describe('AnthropicCompatClient', () => {
+  // THIS TEST VALIDATES A HARD REQUIREMENT (AIMP-001.7.1).
+  // YOU MUST NOT MODIFY THIS TEST UNLESS THE REQUIREMENT CHANGES.
   it('posts to v1/messages with anthropic headers and parses text blocks', async () => {
     const { captured } = stubFetch(200, {
       content: [
@@ -99,5 +112,27 @@ describe('AnthropicCompatClient', () => {
     stubFetch(500, { error: 'server broke' });
     const client = new AnthropicCompatClient({ baseUrl: 'https://x.test', apiKey: 'k', model: 'm' });
     await expect(client.complete({ prompt: 'hi' })).rejects.toThrow(/500.*server broke/s);
+  });
+});
+
+describe('ModelClient contract', () => {
+  // THIS TEST VALIDATES A HARD REQUIREMENT (AIMP-001.7.2).
+  // YOU MUST NOT MODIFY THIS TEST UNLESS THE REQUIREMENT CHANGES.
+  it('accepts any object with a conforming complete() method as the model client', async () => {
+    const prompts: string[] = [];
+    const structuralClient = {
+      async complete(request: ModelRequest) {
+        prompts.push(request.prompt);
+        return { text: '[{"op": "add", "text": "structural client works"}]' };
+      },
+    };
+    const edits = await reflect({
+      model: structuralClient,
+      skill: '# Skill',
+      results: [{ id: 'f1', hard: 0, soft: 0.1, trajectory: 'failed trajectory' }],
+      logger: collectLogger(),
+    });
+    expect(edits).toEqual([{ op: 'add', text: 'structural client works' }]);
+    expect(prompts).toHaveLength(1);
   });
 });

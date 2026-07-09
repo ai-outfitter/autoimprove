@@ -1,3 +1,6 @@
+// PINNED REQUIREMENT TESTS. Tests below marked with a HARD REQUIREMENT
+// comment validate docs/requirements/AIMP-001-core-loop.md. To change one,
+// amend AIMP-001 FIRST, then update the test in the same change.
 import { describe, expect, it } from 'vitest';
 import { runRollout, type Task, type TaskRunner } from '../src/index.js';
 import { collectLogger, makeTasks, okResult } from './helpers.js';
@@ -10,6 +13,8 @@ describe('runRollout', () => {
     expect(results.map((r) => r.id)).toEqual(['t1', 't2', 't3', 't4']);
   });
 
+  // THIS TEST VALIDATES A HARD REQUIREMENT (AIMP-001.1.1, AIMP-001.1.3).
+  // YOU MUST NOT MODIFY THIS TEST UNLESS THE REQUIREMENT CHANGES.
   it('retries a rejected task once and succeeds silently', async () => {
     const attempts = new Map<string, number>();
     const runner: TaskRunner = async (task) => {
@@ -26,6 +31,8 @@ describe('runRollout', () => {
     expect(logger.warns).toHaveLength(0);
   });
 
+  // THIS TEST VALIDATES A HARD REQUIREMENT (AIMP-001.1.2, AIMP-001.1.4).
+  // YOU MUST NOT MODIFY THIS TEST UNLESS THE REQUIREMENT CHANGES.
   it('scores {hard: 0, soft: 0} with a visible error field after two failures, and warns', async () => {
     const runner: TaskRunner = async (task) => {
       if (task.id === 't1') throw new Error('agent harness exploded');

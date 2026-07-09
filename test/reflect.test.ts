@@ -1,3 +1,6 @@
+// PINNED REQUIREMENT TESTS. Tests below marked with a HARD REQUIREMENT
+// comment validate docs/requirements/AIMP-001-core-loop.md. To change one,
+// amend AIMP-001 FIRST, then update the test in the same change.
 import { describe, expect, it } from 'vitest';
 import {
   reflect,
@@ -39,6 +42,8 @@ describe('reflect', () => {
     expect(model.calls[0]?.prompt).toContain('FAILURES');
   });
 
+  // THIS TEST VALIDATES A HARD REQUIREMENT (AIMP-001.3.6).
+  // YOU MUST NOT MODIFY THIS TEST UNLESS THE REQUIREMENT CHANGES.
   it('includes the rejected-edit buffer as negative context in prompts', async () => {
     const model = new MockModelClient(() => '[]');
     const rejectedEdit: SkillEdit = { op: 'add', text: 'try this rejected thing' };
@@ -67,6 +72,8 @@ describe('reflect', () => {
     expect(failurePrompt).toContain('missed edge case');
   });
 
+  // THIS TEST VALIDATES A HARD REQUIREMENT (AIMP-001.6.2).
+  // YOU MUST NOT MODIFY THIS TEST UNLESS THE REQUIREMENT CHANGES.
   it('returns no edits and warns when the model call fails', async () => {
     const model: ModelClient = {
       complete: async () => {
@@ -79,10 +86,29 @@ describe('reflect', () => {
     expect(logger.warns.some((w) => w.includes('model down'))).toBe(true);
   });
 
+  // THIS TEST VALIDATES A HARD REQUIREMENT (AIMP-001.6.2).
+  // YOU MUST NOT MODIFY THIS TEST UNLESS THE REQUIREMENT CHANGES.
   it('treats an unparseable response as zero edits without throwing', async () => {
     const model = new MockModelClient(() => 'I refuse to answer in JSON.');
     const edits = await reflect({ model, skill: SKILL, results: results(), logger: collectLogger() });
     expect(edits).toEqual([]);
+  });
+
+  // THIS TEST VALIDATES A HARD REQUIREMENT (AIMP-001.1.6).
+  // YOU MUST NOT MODIFY THIS TEST UNLESS THE REQUIREMENT CHANGES.
+  it('labels infrastructure-errored results in the reflection prompt', async () => {
+    const model = new MockModelClient(() => '[]');
+    const errored: RolloutResult = {
+      id: 'e1',
+      hard: 0,
+      soft: 0,
+      trajectory: '',
+      error: 'runner exploded twice',
+    };
+    await reflect({ model, skill: SKILL, results: [errored], logger: collectLogger() });
+    expect(model.calls).toHaveLength(1);
+    expect(model.calls[0]?.prompt).toContain('INFRASTRUCTURE ERROR');
+    expect(model.calls[0]?.prompt).toContain('runner exploded twice');
   });
 });
 
@@ -105,6 +131,8 @@ describe('mergeEdits', () => {
     expect(merged).toEqual([{ op: 'add', text: 'merged' }]);
   });
 
+  // THIS TEST VALIDATES A HARD REQUIREMENT (AIMP-001.6.3).
+  // YOU MUST NOT MODIFY THIS TEST UNLESS THE REQUIREMENT CHANGES.
   it('falls back to the input edits when the response is unparseable', async () => {
     const model = new MockModelClient(() => 'not json');
     const edits: SkillEdit[] = [
@@ -130,6 +158,8 @@ describe('selectEdits', () => {
     expect(model.calls).toHaveLength(0);
   });
 
+  // THIS TEST VALIDATES A HARD REQUIREMENT (AIMP-001.4.4).
+  // YOU MUST NOT MODIFY THIS TEST UNLESS THE REQUIREMENT CHANGES.
   it('asks the model to rank and caps the result at the budget', async () => {
     const model = new MockModelClient(() =>
       JSON.stringify([
@@ -147,6 +177,8 @@ describe('selectEdits', () => {
     ]);
   });
 
+  // THIS TEST VALIDATES A HARD REQUIREMENT (AIMP-001.4.4, AIMP-001.6.4).
+  // YOU MUST NOT MODIFY THIS TEST UNLESS THE REQUIREMENT CHANGES.
   it('falls back to the first budget edits when the response is unparseable', async () => {
     const model = new MockModelClient(() => 'nope');
     const selected = await selectEdits({ model, skill: SKILL, edits: four, budget: 2, logger: collectLogger() });

@@ -1,3 +1,6 @@
+// PINNED REQUIREMENT TESTS. Tests below marked with a HARD REQUIREMENT
+// comment validate docs/requirements/AIMP-001-core-loop.md. To change one,
+// amend AIMP-001 FIRST, then update the test in the same change.
 import { mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -72,6 +75,8 @@ describe('train (end to end)', () => {
     expect(summary.records[0]?.baselineScore).toBeCloseTo(0.3);
   });
 
+  // THIS TEST VALIDATES A HARD REQUIREMENT (AIMP-001.5.3).
+  // YOU MUST NOT MODIFY THIS TEST UNLESS THE REQUIREMENT CHANGES.
   it('never runs test-split tasks through the loop', async () => {
     const seen = new Set<string>();
     const counter = { calls: 0 };
@@ -86,6 +91,8 @@ describe('train (end to end)', () => {
     }
   });
 
+  // THIS TEST VALIDATES A HARD REQUIREMENT (AIMP-001.3.5, AIMP-001.3.6).
+  // YOU MUST NOT MODIFY THIS TEST UNLESS THE REQUIREMENT CHANGES.
   it('feeds rejected edits back into reflection as negative context', async () => {
     // Constant scores: no candidate can strictly improve, so every proposal is rejected.
     const runner: TaskRunner = async (task) => ({
@@ -108,6 +115,42 @@ describe('train (end to end)', () => {
     expect(laterReflect[0]?.prompt).toContain('did not strictly improve');
   });
 
+  // THIS TEST VALIDATES A HARD REQUIREMENT (AIMP-001.4.5).
+  // YOU MUST NOT MODIFY THIS TEST UNLESS THE REQUIREMENT CHANGES.
+  it('caps applied edits at the scheduler budget even when the optimizer over-returns', async () => {
+    // Reflect proposes three edits; merge keeps all three; select misbehaves
+    // and returns all three despite a budget of one. The library must still
+    // cap the applied patch at the scheduler's budget.
+    const threeEdits = JSON.stringify([
+      { op: 'add', text: 'Rule one.' },
+      { op: 'add', text: 'Rule two.' },
+      { op: 'add', text: 'Rule three.' },
+    ]);
+    const model = new MockModelClient(() => threeEdits);
+    const runner: TaskRunner = async (task) => ({
+      id: task.id,
+      hard: 0,
+      soft: 0.5,
+      trajectory: `transcript ${task.id}`,
+    });
+    const summary = await train({
+      ...baseOptions,
+      epochs: 1,
+      scheduler: () => 1,
+      runner,
+      model,
+      logger: collectLogger(),
+    });
+
+    expect(summary.records).toHaveLength(1);
+    const record = summary.records[0]!;
+    expect(record.editBudget).toBe(1);
+    expect(record.proposedEdits).toBe(3);
+    expect(record.selectedEdits).toBeLessThanOrEqual(record.editBudget);
+    expect(record.appliedEdits).toBeLessThanOrEqual(record.editBudget);
+    expect(record.appliedEdits).toBe(1);
+  });
+
   it('throws when the ratio leaves the validation split empty', async () => {
     await expect(
       train({
@@ -123,6 +166,8 @@ describe('train (end to end)', () => {
 });
 
 describe('train (resume from state)', () => {
+  // THIS TEST VALIDATES A HARD REQUIREMENT (AIMP-001.5.6).
+  // YOU MUST NOT MODIFY THIS TEST UNLESS THE REQUIREMENT CHANGES.
   it('writes state after every step and does no work when rerun after completion', async () => {
     const dir = await mkdtemp(join(tmpdir(), 'autoimprove-'));
     const stateFile = join(dir, 'state.json');
@@ -154,6 +199,8 @@ describe('train (resume from state)', () => {
     expect(second.steps).toBe(first.steps);
   });
 
+  // THIS TEST VALIDATES A HARD REQUIREMENT (AIMP-001.5.2, AIMP-001.5.6).
+  // YOU MUST NOT MODIFY THIS TEST UNLESS THE REQUIREMENT CHANGES.
   it('resumes mid-run from a partial state file', async () => {
     const dir = await mkdtemp(join(tmpdir(), 'autoimprove-'));
     const stateFile = join(dir, 'state.json');
@@ -208,6 +255,8 @@ describe('train (resume from state)', () => {
     expect(summary.usage).toEqual({ promptTokens: 12, completionTokens: 8 });
   });
 
+  // THIS TEST VALIDATES A HARD REQUIREMENT (AIMP-001.5.4).
+  // YOU MUST NOT MODIFY THIS TEST UNLESS THE REQUIREMENT CHANGES.
   it('refuses to resume with a different seed', async () => {
     const dir = await mkdtemp(join(tmpdir(), 'autoimprove-'));
     const stateFile = join(dir, 'state.json');
@@ -230,6 +279,8 @@ describe('train (resume from state)', () => {
     ).rejects.toThrow(/seed/);
   });
 
+  // THIS TEST VALIDATES A HARD REQUIREMENT (AIMP-001.5.5).
+  // YOU MUST NOT MODIFY THIS TEST UNLESS THE REQUIREMENT CHANGES.
   it('starts fresh when the state file is corrupt', async () => {
     const dir = await mkdtemp(join(tmpdir(), 'autoimprove-'));
     const stateFile = join(dir, 'state.json');

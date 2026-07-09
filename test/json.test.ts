@@ -1,3 +1,6 @@
+// PINNED REQUIREMENT TESTS. Tests below marked with a HARD REQUIREMENT
+// comment validate docs/requirements/AIMP-001-core-loop.md. To change one,
+// amend AIMP-001 FIRST, then update the test in the same change.
 import { describe, expect, it } from 'vitest';
 import { extractFirstJson, parseEditsResponse } from '../src/index.js';
 
@@ -52,6 +55,8 @@ describe('parseEditsResponse', () => {
     expect(edits).toEqual([{ op: 'add' }]);
   });
 
+  // THIS TEST VALIDATES A HARD REQUIREMENT (AIMP-001.6.1).
+  // YOU MUST NOT MODIFY THIS TEST UNLESS THE REQUIREMENT CHANGES.
   it('returns an empty list for invalid input, never throws', () => {
     expect(parseEditsResponse('')).toEqual([]);
     expect(parseEditsResponse('I could not decide on any edits.')).toEqual([]);

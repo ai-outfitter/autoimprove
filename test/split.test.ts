@@ -1,3 +1,6 @@
+// PINNED REQUIREMENT TESTS. Tests below marked with a HARD REQUIREMENT
+// comment validate docs/requirements/AIMP-001-core-loop.md. To change one,
+// amend AIMP-001 FIRST, then update the test in the same change.
 import { describe, expect, it } from 'vitest';
 import { splitTasks } from '../src/index.js';
 import { makeTasks } from './helpers.js';
@@ -18,6 +21,8 @@ describe('splitTasks', () => {
     expect(new Set(all).size).toBe(23);
   });
 
+  // THIS TEST VALIDATES A HARD REQUIREMENT (AIMP-001.5.1).
+  // YOU MUST NOT MODIFY THIS TEST UNLESS THE REQUIREMENT CHANGES.
   it('is deterministic for a given seed', () => {
     const tasks = makeTasks(20);
     const a = splitTasks(tasks, '5:2:3', 123);

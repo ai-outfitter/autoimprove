@@ -1,3 +1,6 @@
+// PINNED REQUIREMENT TESTS. Tests below marked with a HARD REQUIREMENT
+// comment validate docs/requirements/AIMP-001-core-loop.md. To change one,
+// amend AIMP-001 FIRST, then update the test in the same change.
 import { describe, expect, it } from 'vitest';
 import { applyEdits, type SkillEdit } from '../src/index.js';
 
@@ -43,6 +46,8 @@ describe('applyEdits', () => {
     expect(result.skipped[0]?.reason).toMatch(/already present/);
   });
 
+  // THIS TEST VALIDATES A HARD REQUIREMENT (AIMP-001.4.1).
+  // YOU MUST NOT MODIFY THIS TEST UNLESS THE REQUIREMENT CHANGES.
   it('deletes exact existing text', () => {
     const result = applyEdits(SKILL, [{ op: 'delete', target: '- Write tests first.\n' }]);
     expect(result.applied).toHaveLength(1);
@@ -50,6 +55,8 @@ describe('applyEdits', () => {
     expect(result.skill).toContain('- Read the task carefully.');
   });
 
+  // THIS TEST VALIDATES A HARD REQUIREMENT (AIMP-001.4.1, AIMP-001.4.2).
+  // YOU MUST NOT MODIFY THIS TEST UNLESS THE REQUIREMENT CHANGES.
   it('skips delete when the target does not match', () => {
     const result = applyEdits(SKILL, [{ op: 'delete', target: 'not in the skill' }]);
     expect(result.applied).toHaveLength(0);
@@ -57,6 +64,8 @@ describe('applyEdits', () => {
     expect(result.skill).toBe(SKILL);
   });
 
+  // THIS TEST VALIDATES A HARD REQUIREMENT (AIMP-001.4.1).
+  // YOU MUST NOT MODIFY THIS TEST UNLESS THE REQUIREMENT CHANGES.
   it('replaces exact existing text', () => {
     const result = applyEdits(SKILL, [
       { op: 'replace', target: 'Keep answers short.', text: 'Keep answers short and cite sources.' },
@@ -65,6 +74,8 @@ describe('applyEdits', () => {
     expect(result.skill).toContain('Keep answers short and cite sources.');
   });
 
+  // THIS TEST VALIDATES A HARD REQUIREMENT (AIMP-001.4.1, AIMP-001.4.2).
+  // YOU MUST NOT MODIFY THIS TEST UNLESS THE REQUIREMENT CHANGES.
   it('skips replace when the target does not match', () => {
     const result = applyEdits(SKILL, [
       { op: 'replace', target: 'missing text', text: 'anything' },
@@ -73,6 +84,8 @@ describe('applyEdits', () => {
     expect(result.skill).toBe(SKILL);
   });
 
+  // THIS TEST VALIDATES A HARD REQUIREMENT (AIMP-001.4.2, AIMP-001.4.3).
+  // YOU MUST NOT MODIFY THIS TEST UNLESS THE REQUIREMENT CHANGES.
   it('skips edits with missing required fields and no-op replaces', () => {
     const edits: SkillEdit[] = [
       { op: 'add' },
