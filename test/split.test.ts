@@ -2,7 +2,7 @@
 // comment validate docs/requirements/AIMP-001-core-loop.md. To change one,
 // amend AIMP-001 FIRST, then update the test in the same change.
 import { describe, expect, it } from 'vitest';
-import { splitTasks } from '../src/index.js';
+import { overrideSplit, splitTasks } from '../src/index.js';
 import { makeTasks } from './helpers.js';
 
 describe('splitTasks', () => {
@@ -57,5 +57,48 @@ describe('splitTasks', () => {
     expect(() => splitTasks(makeTasks(10), '5:2', 42)).toThrow(/Invalid split ratio/);
     expect(() => splitTasks(makeTasks(10), 'a:b:c', 42)).toThrow(/Invalid split ratio/);
     expect(() => splitTasks(makeTasks(10), '0:0:0', 42)).toThrow(/sum to zero/);
+  });
+});
+
+describe('overrideSplit', () => {
+  // THIS TEST VALIDATES A HARD REQUIREMENT (AIMP-001.5.7).
+  // YOU MUST NOT MODIFY THIS TEST UNLESS THE REQUIREMENT CHANGES.
+  it('honors an explicit override verbatim: exact membership and order', () => {
+    const tasks = makeTasks(10);
+    const split = overrideSplit(tasks, {
+      train: ['t7', 't2', 't9'],
+      val: ['t4', 't1'],
+      test: ['t10', 't3'],
+    });
+    expect(split.train.map((t) => t.id)).toEqual(['t7', 't2', 't9']);
+    expect(split.val.map((t) => t.id)).toEqual(['t4', 't1']);
+    expect(split.test.map((t) => t.id)).toEqual(['t10', 't3']);
+    // Resolved to the actual task objects, not synthesized stand-ins.
+    expect(split.train[0]).toBe(tasks[6]);
+  });
+
+  // THIS TEST VALIDATES A HARD REQUIREMENT (AIMP-001.5.7).
+  // YOU MUST NOT MODIFY THIS TEST UNLESS THE REQUIREMENT CHANGES.
+  it('throws when the override lists an id with no matching task', () => {
+    expect(() =>
+      overrideSplit(makeTasks(5), { train: ['t1', 'nope'], val: ['t2'], test: [] }),
+    ).toThrow(/lists task id "nope" but no such task/);
+    expect(() =>
+      overrideSplit(makeTasks(5), { train: ['t1'], val: ['t2'], test: ['t9'] }),
+    ).toThrow(/\(test\) lists task id "t9"/);
+  });
+
+  // THIS TEST VALIDATES A HARD REQUIREMENT (AIMP-001.5.7).
+  // YOU MUST NOT MODIFY THIS TEST UNLESS THE REQUIREMENT CHANGES.
+  it('throws when an id appears more than once across the override', () => {
+    expect(() =>
+      overrideSplit(makeTasks(5), { train: ['t1', 't2'], val: ['t1'], test: [] }),
+    ).toThrow(/"t1" more than once/);
+  });
+
+  it('allows tasks that are not listed anywhere (excluded from the run)', () => {
+    const split = overrideSplit(makeTasks(6), { train: ['t1'], val: ['t2'], test: ['t3'] });
+    const all = [...split.train, ...split.val, ...split.test].map((t) => t.id);
+    expect(all).toEqual(['t1', 't2', 't3']);
   });
 });

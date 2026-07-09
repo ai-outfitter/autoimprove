@@ -151,6 +151,50 @@ describe('train (end to end)', () => {
     expect(record.appliedEdits).toBe(1);
   });
 
+  // THIS TEST VALIDATES A HARD REQUIREMENT (AIMP-001.5.7).
+  // YOU MUST NOT MODIFY THIS TEST UNLESS THE REQUIREMENT CHANGES.
+  it('honors an explicit split override verbatim and still never evaluates test tasks', async () => {
+    const override = {
+      train: ['t9', 't3', 't5', 't1', 't7'],
+      val: ['t2', 't8'],
+      test: ['t10', 't4', 't6'],
+    };
+    const seen = new Set<string>();
+    const base: TaskRunner = magicRunner();
+    const runner: TaskRunner = async (task, skill, ctx) => {
+      seen.add(task.id);
+      return base(task, skill, ctx);
+    };
+    const summary = await train({
+      ...baseOptions,
+      splitOverride: override,
+      runner,
+      model: magicModel(),
+      logger: collectLogger(),
+    });
+    expect(summary.split.train).toEqual(override.train);
+    expect(summary.split.val).toEqual(override.val);
+    expect(summary.split.test).toEqual(override.test);
+    for (const testId of override.test) {
+      expect(seen.has(testId)).toBe(false);
+    }
+    expect(summary.accepts).toBe(1);
+  });
+
+  // THIS TEST VALIDATES A HARD REQUIREMENT (AIMP-001.5.7).
+  // YOU MUST NOT MODIFY THIS TEST UNLESS THE REQUIREMENT CHANGES.
+  it('throws when the split override lists a task id with no matching task', async () => {
+    await expect(
+      train({
+        ...baseOptions,
+        splitOverride: { train: ['t1', 'missing-task'], val: ['t2'], test: [] },
+        runner: magicRunner(),
+        model: magicModel(),
+        logger: collectLogger(),
+      }),
+    ).rejects.toThrow(/lists task id "missing-task" but no such task/);
+  });
+
   it('throws when the ratio leaves the validation split empty', async () => {
     await expect(
       train({

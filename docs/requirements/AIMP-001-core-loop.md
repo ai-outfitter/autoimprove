@@ -64,6 +64,7 @@ an earlier one — before modifying any pinned test. See AIMP-001.8.
 4. `train()` MUST refuse to resume (throw) when the state file was written with a different seed than the current run.
 5. A state file that is not valid JSON or has an unexpected shape MUST produce a logger warning and a fresh run; it MUST NOT crash the run or silently diverge.
 6. When a `stateFile` is provided, `train()` MUST persist state after every completed step, and completed steps MUST NOT be re-executed on resume.
+7. An explicit split override MAY be supplied (`TrainOptions.splitOverride`: task ids for train/val/test). When supplied, it MUST be honored verbatim — exact membership and order, bypassing ratio splitting; an override that lists a task id with no matching task, or lists the same id more than once, MUST throw rather than silently drop or invent tasks; and the test split MUST still never be evaluated (AIMP-001.5.3 applies unchanged).
 
 ### AIMP-001.6: Defensive Parsing
 

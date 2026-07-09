@@ -36,3 +36,41 @@ export function splitTasks(
     test: shuffled.slice(trainN + valN),
   };
 }
+
+/** Explicit split membership by task id. Bypasses ratio splitting. */
+export interface SplitOverride {
+  train: string[];
+  val: string[];
+  test: string[];
+}
+
+/**
+ * Resolve an explicit split override against the task list. The override is
+ * honored verbatim: membership and order are exactly as given. Throws when
+ * the override lists an id with no matching task (unknown or missing tasks
+ * are never silently dropped or invented) or lists the same id more than
+ * once. Tasks not listed anywhere are excluded from the run.
+ */
+export function overrideSplit(tasks: readonly Task[], override: SplitOverride): TaskSplit {
+  const byId = new Map(tasks.map((t) => [t.id, t] as const));
+  const seen = new Set<string>();
+  const resolve = (ids: readonly string[], name: 'train' | 'val' | 'test'): Task[] =>
+    ids.map((id) => {
+      if (seen.has(id)) {
+        throw new Error(`Split override lists task id "${id}" more than once`);
+      }
+      seen.add(id);
+      const task = byId.get(id);
+      if (task === undefined) {
+        throw new Error(
+          `Split override (${name}) lists task id "${id}" but no such task was provided`,
+        );
+      }
+      return task;
+    });
+  return {
+    train: resolve(override.train, 'train'),
+    val: resolve(override.val, 'val'),
+    test: resolve(override.test, 'test'),
+  };
+}

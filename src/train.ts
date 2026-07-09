@@ -11,7 +11,7 @@ import type {
 } from './types.js';
 import { defaultLogger, meanScore } from './types.js';
 import { mulberry32, seededShuffle } from './prng.js';
-import { splitTasks } from './split.js';
+import { splitTasks, overrideSplit, type SplitOverride } from './split.js';
 import { constantScheduler, type EditBudgetScheduler } from './schedulers.js';
 import { applyEdits } from './edits.js';
 import type { RejectedEdit } from './prompts.js';
@@ -93,6 +93,12 @@ export interface TrainOptions {
   seed?: number;
   /** "train:val:test". Default "5:2:3". */
   splitRatio?: string;
+  /**
+   * Explicit split membership by task id; bypasses ratio splitting and is
+   * honored verbatim. Ids with no matching task throw. The test split is
+   * still never evaluated.
+   */
+  splitOverride?: SplitOverride;
   /** Edit budget per step ("textual learning rate"). Default constant 4. */
   scheduler?: EditBudgetScheduler;
   /** Gate metric. Default 'soft'. */
@@ -126,15 +132,22 @@ export async function train(options: TrainOptions): Promise<TrainSummary> {
   const scheduler = options.scheduler ?? constantScheduler();
   const rejectedBufferSize = Math.max(0, options.rejectedBufferSize ?? 20);
 
-  const split = splitTasks(options.tasks, options.splitRatio ?? '5:2:3', seed);
+  const split =
+    options.splitOverride !== undefined
+      ? overrideSplit(options.tasks, options.splitOverride)
+      : splitTasks(options.tasks, options.splitRatio ?? '5:2:3', seed);
+  const splitDesc =
+    options.splitOverride !== undefined
+      ? 'explicit split override'
+      : `ratio "${options.splitRatio ?? '5:2:3'}"`;
   if (split.train.length === 0) {
     throw new Error(
-      `Training split is empty (${options.tasks.length} tasks, ratio "${options.splitRatio ?? '5:2:3'}"); provide more tasks or adjust the ratio`,
+      `Training split is empty (${options.tasks.length} tasks, ${splitDesc}); provide more tasks or adjust the ratio`,
     );
   }
   if (split.val.length === 0) {
     throw new Error(
-      `Validation split is empty (${options.tasks.length} tasks, ratio "${options.splitRatio ?? '5:2:3'}"); the gate needs held-out tasks`,
+      `Validation split is empty (${options.tasks.length} tasks, ${splitDesc}); the gate needs held-out tasks`,
     );
   }
 

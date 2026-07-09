@@ -27,8 +27,8 @@ export { extractFirstJson, parseEditsResponse } from './json.js';
 
 export { mulberry32, seededShuffle } from './prng.js';
 
-export type { TaskSplit } from './split.js';
-export { splitTasks } from './split.js';
+export type { TaskSplit, SplitOverride } from './split.js';
+export { splitTasks, overrideSplit } from './split.js';
 
 export type { EditBudgetScheduler } from './schedulers.js';
 export {
