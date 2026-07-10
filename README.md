@@ -27,15 +27,17 @@ validation split of 4 tasks (identical dates in both runs below).
 | Run | Trainer | Baseline (val soft) | Best | Gate decisions |
 | --- | --- | --- | --- | --- |
 | Run 2, 2026-07-09 | upstream Python `skillopt` 0.2.0 | 0.6374 | 0.7155 | 1 accept, 2 rejects, 1 skip |
-| Run 3, 2026-07-09 | this library | 0.6226 | in progress (first accept: 0.6637) | running |
+| Run 3, 2026-07-09 | this library | 0.6226 | 0.6637 | 1 accept, 3 rejects |
 
-The single accepted edit in Run 2 raised the held-out score 12% relative;
-the gate then refused two later candidate batches that scored 0.49 and
-0.42 — worse skills that would have shipped without held-out validation.
-Run 3 re-runs the same experiment with only the trainer swapped for this
+Both runs share one shape: exactly one gate-accepted edit improved the
+held-out score (+12.3% and +6.6% relative), and every later candidate was
+refused — including batches scoring 0.49 and 0.42 that would have shipped
+without held-out validation. Run 3 swapped only the trainer for this
 library (same rollout code, scorer, judge prompt, and pinned validation
-dates); its baseline landing within judge noise of Run 2's is the scorer
-parity check. Numbers are single runs on n=4 validation, so treat them as
+dates); its baseline within judge noise of Run 2's is the scorer parity
+check, and both implementations independently induced the same kind of
+edit (evidence-discipline rules distilled from the reviewer's rejection
+patterns). Numbers are single runs on n=4 validation, so treat them as
 loop-works evidence, not benchmarks.
 
 ## How the loop works
