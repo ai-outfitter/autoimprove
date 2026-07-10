@@ -38,5 +38,9 @@
     "@types/node": "^20.14.0",
     "typescript": "^5.5.4",
     "vitest": "^2.1.9"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ai-outfitter/autoimprove.git"
   }
 }
