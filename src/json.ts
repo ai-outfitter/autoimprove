@@ -48,6 +48,32 @@ function findBalancedEnd(text: string, start: number): number {
   return -1;
 }
 
+/**
+ * Find and parse the LAST balanced JSON object in `text`. Arrays and
+ * primitives are ignored; text before, between, and after objects is
+ * ignored. Used by the CLI runner contract, where a task command may log
+ * freely as long as its stdout ends with a JSON result object. Not part
+ * of the public package API (not re-exported from index.ts).
+ */
+export function extractLastJsonObject(text: string): Record<string, unknown> | undefined {
+  let last: Record<string, unknown> | undefined;
+  for (let start = 0; start < text.length; start++) {
+    if (text[start] !== '{') continue;
+    const end = findBalancedEnd(text, start);
+    if (end === -1) continue;
+    try {
+      const value = JSON.parse(text.slice(start, end + 1)) as unknown;
+      if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
+        last = value as Record<string, unknown>;
+        start = end; // Nested objects belong to this value; skip past it.
+      }
+    } catch {
+      // Balanced but invalid (e.g. braces in prose); keep scanning.
+    }
+  }
+  return last;
+}
+
 const VALID_OPS: ReadonlySet<string> = new Set(['add', 'delete', 'replace']);
 
 /**

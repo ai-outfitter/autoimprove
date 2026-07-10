@@ -22,6 +22,17 @@ Initial implementation.
   parsing throughout; zero runtime dependencies.
 - Formal requirements in `docs/requirements/AIMP-001-core-loop.md`
   (RFC 2119) with requirement-pinned tests and `.deepreview` enforcement.
+- Minimal CLI (`autoimprove train --config <path>`, plus `--resume` and
+  `--dry-run`): JSON config, JSONL tasks, shell-command task runner
+  (placeholders `{{SKILL_FILE}}`/`{{TASK_ID}}`/`{{TASK_PAYLOAD}}`/
+  `{{WORK_DIR}}`, last-JSON-object stdout contract, configurable
+  timeout), optimizer via `openai`/`anthropic` HTTP clients or a
+  `command` template (`{{PROMPT_FILE}}`/`{{SYSTEM_FILE}}`, e.g.
+  `claude -p`). Shell-escaped placeholder substitution, named-field
+  config errors with exit 2, zero-invocation dry run, trained skill
+  written as `<name>.trained.md` plus a summary JSON next to the state
+  file. Still zero runtime dependencies. Formal requirements in
+  `docs/requirements/AIMP-002-cli.md`.
 
 ## 0.0.1 — 2026-07-08
 

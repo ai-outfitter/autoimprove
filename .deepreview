@@ -26,7 +26,7 @@ requirements_rfc2119:
       - FAIL: Issues found. List each issue with a line reference and concise description.
 
 pinned_test_amendment:
-  description: "Require an AIMP-001 amendment in the same change when pinned requirement tests are modified."
+  description: "Require an AIMP requirement amendment in the same change when pinned requirement tests are modified."
   match:
     include:
       - "test/**/*.test.ts"
@@ -41,11 +41,12 @@ pinned_test_amendment:
       Tests carrying the two-line traceability comment
       `THIS TEST VALIDATES A HARD REQUIREMENT (AIMP-NNN.M)` /
       `YOU MUST NOT MODIFY THIS TEST UNLESS THE REQUIREMENT CHANGES.`
-      are pinned to docs/requirements/AIMP-001-core-loop.md.
+      are pinned to the matching document in docs/requirements/
+      (AIMP-001 -> AIMP-001-core-loop.md, AIMP-002 -> AIMP-002-cli.md, ...).
 
       Check that:
       1. Any modification or deletion of a pinned test is accompanied by a
-         corresponding amendment to the referenced AIMP-001 requirement in the
+         corresponding amendment to the referenced AIMP requirement in the
          same change. Amend the requirement document FIRST; the test change
          must match the amended requirement text.
       2. New tests may be pinned to existing requirements without an
@@ -57,5 +58,5 @@ pinned_test_amendment:
          docs/requirements/.
 
       Output Format:
-      - PASS: Pinned tests and AIMP-001 amendments are consistent in this change.
-      - FAIL: List each pinned test changed without a corresponding AIMP-001 amendment (or stale requirement/test pair) with file and line references.
+      - PASS: Pinned tests and AIMP requirement amendments are consistent in this change.
+      - FAIL: List each pinned test changed without a corresponding AIMP requirement amendment (or stale requirement/test pair) with file and line references.

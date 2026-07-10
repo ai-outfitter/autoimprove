@@ -127,6 +127,42 @@ const model = new AnthropicCompatClient({
 Any object with a `complete({system?, prompt, maxTokens?})` method works
 as a `ModelClient`, so local models and gateways plug in the same way.
 
+## CLI
+
+For hosts that would rather bring a shell command than TypeScript, the
+package ships one command:
+
+```
+autoimprove train --config train.json [--resume] [--dry-run]
+```
+
+The JSON config points at the seed skill, a JSONL task file
+(`{"id", "description"?, "payload"?}` per line), a runner command
+template, and the optimizer model:
+
+```json
+{
+  "skill": "skill.md",
+  "tasks": "tasks.jsonl",
+  "runner": { "command": "./run-task.sh {{SKILL_FILE}} {{TASK_ID}} {{TASK_PAYLOAD}} {{WORK_DIR}}", "timeoutSeconds": 900 },
+  "model": { "provider": "anthropic", "model": "claude-sonnet-5", "apiKeyEnv": "ANTHROPIC_API_KEY" },
+  "train": { "epochs": 2, "batchSize": 4, "seed": 42, "stateFile": ".autoimprove/state.json" }
+}
+```
+
+The runner command runs once per task with the current skill written to
+`{{SKILL_FILE}}` inside a fresh `{{WORK_DIR}}`; its stdout must end with
+`{"hard": 0|1, "soft": number, "trajectory": string, "failReason"?: string}`
+(the last JSON object on stdout is parsed, so log freely before it).
+Placeholder values are shell-escaped; a non-zero exit or unparseable
+output is contained by the library's retry logic like any runner failure.
+For CLI-authenticated optimizers use `"provider": "command"` with a
+template like `claude -p "$(cat {{PROMPT_FILE}})"`. `--dry-run` validates
+the config and prints the plan without invoking anything; bad config
+names the first invalid field and exits 2. On completion the best skill
+lands next to the seed as `<name>.trained.md` with a summary JSON next to
+the state file. Full contract: `docs/requirements/AIMP-002-cli.md`.
+
 ## API overview
 
 High level:
