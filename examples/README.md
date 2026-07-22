@@ -23,75 +23,93 @@ scores vary run to run; the accept behavior is the stable part.
 
 ## cad-skill
 
-A coding-agent example that trains a real `generate-basic-cad` skill against
-four CAD backends: AnchorSCAD, Replicad, TSCAD, and scad-js. The initial task
-surface stays small—cube, sphere, and a named two-part cube+sphere assembly—
-while parameter variants create a 12 train / 8 validation / 12 test split.
-Every backend has held-out coverage for all three model kinds, and the held-out
-set is evaluated after `train()` returns.
+An Outfitter v1 `cad` profile with two responsibilities kept separate:
 
-Held-out scores are labeled as single-sample because coding-agent rollouts are
-stochastic. If no edit is accepted, the example reuses one rollout for both
-columns instead of presenting noise as a change.
+- `generate-replicad-cad` is the trainable skill. It writes Replicad models for
+  boxes, cubes, spheres, and named multi-part assemblies.
+- `self-improve-cad` owns the maintenance procedure. It runs Autoimprove,
+  evaluates the candidate, and lets a deterministic promotion gate update the
+  generation skill.
 
-There is no public package named OpenTsCad. This example records the explicit
-assumption that “OpenTsCad” means the current TSCAD project and uses
-`@tscad/modeling` under the `opentscad` backend id. It likewise normalizes
-“AnchorCAD” to AnchorSCAD, using the `anchorscad-core` distribution under the
-`anchorscad` backend id.
+The evaluator is a pinned, attributed Replicad/OpenCascade.js port of the
+[CADTestBench](https://github.com/dimitrismallis/CADTestBench) schema and
+PR/RS metrics, not an unmodified run of its Python/CadQuery harness. It ports
+official sample `00003247` (a rectangular prism with 13 CADTests) and labels
+the cube, sphere, parametric, and named-assembly cases as local extensions.
 
-Install and build the zero-runtime-dependency core first, then install the CAD
-runtimes in the isolated example package:
+The target prompt and temporary work directory contain one public example. After
+generation, the verifier reuses the same `build(spec)` implementation with
+evaluator-only parameter probes and measures the resulting B-reps: OpenCascade
+validity, topology, bounds, volume, area, center of mass, geometry types,
+boolean IoU, mesh integrity, and pairwise assembly distance/interference. The
+probes are withheld from the ordinary target flow, not an adversarial secrecy
+boundary: a trusted same-host agent could deliberately inspect this checkout.
+
+Use Node 22.19 or newer. Install Outfitter v1 and the isolated Replicad runtime,
+then validate the profile:
 
 ```
 cd autoimprove
 npm ci
 npm run build
+git clone https://github.com/ai-outfitter/outfitter.git ../outfitter-v1
+git -C ../outfitter-v1 checkout b4ee211dbe84a8d462485e892c6a6c21cd83ae07
+npm --prefix ../outfitter-v1 ci
+npm --prefix ../outfitter-v1 run build
+npm --prefix ../outfitter-v1/code/cli link
 cd examples/cad-skill
 npm ci
-npm run setup:python
 npm test
 npm run dry-run
+cd ../..
+outfitter validate --strict
 ```
 
-The AnchorSCAD setup uses `uv` to provision Python 3.12. AnchorSCAD Core 0.2.4
-installs on the system's Python 3.14, but its renderer is not compatible with
-that interpreter.
-
-Run one backend first to reduce live-agent calls:
+Run the maintenance skill through the profile:
 
 ```
-npm run train -- --backends replicad
+GITHUB_RUN_ID=local GITHUB_RUN_ATTEMPT=1 CAD_IMPROVE_TRIALS=3 \
+outfitter run cad --harness pi -- --print \
+  'Use $self-improve-cad to run one measured improvement cycle with 3 trials.'
 ```
 
-Then run the complete matrix:
+For development, invoke the deterministic training entrypoint directly:
 
 ```
-npm run train
+cd examples/cad-skill
+npm run train -- --trials 3 --run-id local-001
 ```
 
-The default target and optimizer commands use authenticated `codex exec`
-processes. Override either command with a JSON argv array when another coding
-agent CLI reads its prompt from stdin:
+Both target and optimizer model calls resolve the copied Outfitter v1 `cad`
+profile by default. Override either with a JSON argv array for fixtures or a
+different stdin-driven harness:
 
 ```
 CAD_TARGET_COMMAND_JSON='["my-agent","--print"]' \
 CAD_OPTIMIZER_COMMAND_JSON='["my-agent","--print"]' \
-npm run train -- --backends scad-js
+npm run train -- --trials 3 --run-id alternate-harness
 ```
 
-Each candidate must return backend-native part objects plus a combined preview.
-The fixed verifier scores execution, artifacts, part names and primitive types,
-world-space centers, per-part bounds, combined bounds, and native volume where
-the backend exposes a stable measurement. Assemblies therefore retain
-their two named instances; a fused mesh alone does not count as an assembly.
+Held-out evaluation is repeated (three trials by default). Every run records
+PR, RS, invalid percentage, B-rep validity, category accuracy, B-rep IoU,
+geometric errors, parametric pass rate, and separate model/assembly slices.
+The candidate is promoted only when RS improves by at least one percentage
+point while PR, invalidity, and both slices do not regress. Aggregate history
+is committed under `examples/cad-skill/metrics/`; raw trajectories remain ignored under
+`examples/cad-skill/.autoimprove/`.
+
+The scheduled workflow runs the profile weekly, pushes a long-lived automation
+branch, and opens or updates a draft PR. It requires `OPENAI_API_KEY`. A
+dedicated fine-grained bot token is
+recommended in the `OUTFITTER_BOT_TOKEN` secret so workflow pushes trigger
+normal CI; `GITHUB_TOKEN` is the fallback.
 
 Generated model source is executable code. The example constrains Node
-verifiers with Node's permission model, applies a Python audit guard, strips
-the verifier environment, and keeps candidates outside the repository, but it
-is not a hardened multi-tenant sandbox. Use only target and optimizer commands
-you trust; use a container or VM for hostile candidates.
-
-Training state and the resulting `SKILL.trained.md` are ignored by git. Pass
-`--resume` to continue an interrupted run or `--keep-workdirs` to retain task
-sandboxes under the system temporary directory for debugging.
+verifiers with Node's permission model, strips checkout and workflow locators
+from nested command environments, and keeps candidates outside the repository,
+but it is not a hardened multi-tenant sandbox. API credentials remain available
+to the configured model harness, and same-host filesystem access is not a
+security boundary. Use only target and optimizer commands you trust; use a
+container or VM for hostile candidates. Pass `--resume` with the same run id to
+continue an interrupted cycle, or `--keep-workdirs` to retain task sandboxes for
+debugging.

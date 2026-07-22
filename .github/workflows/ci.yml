@@ -28,20 +28,13 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 22.19.0
           cache: npm
           cache-dependency-path: |
             package-lock.json
             examples/cad-skill/package-lock.json
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-          cache: pip
-          cache-dependency-path: examples/cad-skill/requirements.txt
       - run: npm ci
       - run: npm ci
         working-directory: examples/cad-skill
-      - run: python -m venv examples/cad-skill/.venv
-      - run: examples/cad-skill/.venv/bin/python -m pip install -r examples/cad-skill/requirements.txt
       - run: npm test
         working-directory: examples/cad-skill

@@ -10,15 +10,17 @@ import { splitIds, tasks } from '../src/tasks.mjs';
 
 const EXAMPLE_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const targetStub = resolve(EXAMPLE_DIR, 'fixtures', 'training-target-agent.mjs');
-const selected = tasks.filter((task) => task.payload.backend === 'scad-js');
-const selectedIds = new Set(selected.map((task) => task.id));
 const splitOverride = {
-  train: splitIds.train.filter((id) => selectedIds.has(id)),
-  val: splitIds.val.filter((id) => selectedIds.has(id)),
-  test: splitIds.test.filter((id) => selectedIds.has(id)),
+  train: [splitIds.train[0]],
+  val: [splitIds.val[0]],
+  test: [splitIds.test[0]],
 };
+const selectedIds = new Set(Object.values(splitOverride).flat());
+const selected = tasks.filter((task) => selectedIds.has(task.id));
 
-test('autoimprove accepts a scorer-proven CAD skill improvement', { timeout: 60_000 }, async () => {
+test('autoimprove accepts a CAD skill improvement through the Outfitter profile', {
+  timeout: 120_000,
+}, async () => {
   const runner = createCadRunner({ targetCommand: [process.execPath, targetStub] });
   const optimizer = {
     async complete() {
@@ -26,7 +28,7 @@ test('autoimprove accepts a scorer-proven CAD skill improvement', { timeout: 60_
         text: JSON.stringify([{
           op: 'add',
           text: 'TRAINING_FIXTURE_READY',
-          rationale: 'The trajectories show the target needs the native primitive implementation.',
+          rationale: 'The trajectories show the target needs the generic Replicad implementation.',
         }]),
       };
     },
@@ -39,9 +41,9 @@ test('autoimprove accepts a scorer-proven CAD skill improvement', { timeout: 60_
     runner,
     model: optimizer,
     epochs: 1,
-    batchSize: splitOverride.train.length,
+    batchSize: 1,
     scheduler: constantScheduler(1),
-    concurrency: 2,
+    concurrency: 1,
     logger: { info() {}, warn() {} },
   });
 
@@ -51,7 +53,9 @@ test('autoimprove accepts a scorer-proven CAD skill improvement', { timeout: 60_
   assert.match(summary.bestSkill, /TRAINING_FIXTURE_READY/);
 });
 
-test('scores a failed target command instead of aborting the rollout', async () => {
+test('scores a failed target command instead of aborting the rollout', {
+  timeout: 60_000,
+}, async () => {
   const runner = createCadRunner({
     targetCommand: [process.execPath, '-e', 'process.exit(2)'],
   });
@@ -59,6 +63,6 @@ test('scores a failed target command instead of aborting the rollout', async () 
 
   assert.equal(result.hard, 0);
   assert.equal(result.soft, 0);
-  assert.match(result.failReason, /execution/);
+  assert.match(result.failReason, /verification|probe|CADTest|execute/i);
   assert.match(result.trajectory, /target failure:/);
 });

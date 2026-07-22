@@ -1,27 +1,18 @@
 import { spawn } from 'node:child_process';
+import { delimiter, dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const EXAMPLE_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const OUTFITTER_MODEL = resolve(EXAMPLE_DIR, 'scripts', 'run-outfitter-model.mjs');
 
 export const DEFAULT_TARGET_COMMAND = Object.freeze([
-  'codex',
-  'exec',
-  '--ephemeral',
-  '--skip-git-repo-check',
-  '--sandbox',
-  'workspace-write',
-  '--color',
-  'never',
-  '-',
+  process.execPath,
+  OUTFITTER_MODEL,
 ]);
 
 export const DEFAULT_OPTIMIZER_COMMAND = Object.freeze([
-  'codex',
-  'exec',
-  '--ephemeral',
-  '--skip-git-repo-check',
-  '--sandbox',
-  'read-only',
-  '--color',
-  'never',
-  '-',
+  process.execPath,
+  OUTFITTER_MODEL,
 ]);
 
 export function commandFromEnv(name, fallback) {
@@ -39,13 +30,52 @@ export function commandFromEnv(name, fallback) {
   return parsed;
 }
 
+const PRIVATE_ENVIRONMENT_KEYS = new Set([
+  'INIT_CWD',
+  'NODE_OPTIONS',
+  'NODE_PATH',
+  'OLDPWD',
+  'PWD',
+  'CAD_KEEP_WORKDIRS',
+  'CAD_METRICS_DIR',
+  'CAD_OPTIMIZER_COMMAND_JSON',
+  'CAD_REPOSITORY_ROOT',
+  'CAD_STATE_ROOT',
+  'CAD_TARGET_COMMAND_JSON',
+]);
+
+const isPrivateEnvironmentKey = (key) => {
+  const normalized = key.toUpperCase();
+  return PRIVATE_ENVIRONMENT_KEYS.has(normalized)
+    || normalized.startsWith('GITHUB_')
+    || normalized.startsWith('RUNNER_')
+    || normalized.startsWith('NPM_');
+};
+
+const scrubPath = (value = '') => value
+  .split(delimiter)
+  .filter(Boolean)
+  // npm lifecycle PATH entries disclose the checkout and let a nested model
+  // reach repository-local tools that are intentionally absent from its cwd.
+  .filter((entry) => !/(?:^|[\\/])node_modules[\\/]\.bin(?:[\\/]|$)/u.test(entry))
+  .join(delimiter);
+
+export function sanitizedCommandEnvironment(cwd, source = process.env) {
+  const environment = Object.fromEntries(
+    Object.entries(source).filter(([key]) => !isPrivateEnvironmentKey(key)),
+  );
+  if (environment.PATH) environment.PATH = scrubPath(environment.PATH);
+  if (cwd) environment.PWD = cwd;
+  return environment;
+}
+
 export function runCommand(command, prompt, { cwd, timeoutMs = 300_000 } = {}) {
   return new Promise((resolve, reject) => {
     const detached = process.platform !== 'win32';
     const child = spawn(command[0], command.slice(1), {
       cwd,
       detached,
-      env: { ...process.env, ...(cwd ? { PWD: cwd, OLDPWD: '' } : {}) },
+      env: sanitizedCommandEnvironment(cwd),
       stdio: ['pipe', 'pipe', 'pipe'],
     });
     let stdout = '';

@@ -1,10 +1,12 @@
 import { makeBox, makeCompound, makeSphere } from 'replicad';
 
 const makeShape = (part) => {
-  if (part.primitive === 'cube') {
-    const half = part.size / 2;
-    const min = part.center.map((value) => value - half);
-    const max = part.center.map((value) => value + half);
+  if (part.primitive === 'cube' || part.primitive === 'box') {
+    const dimensions = part.primitive === 'cube'
+      ? [part.size, part.size, part.size]
+      : part.dimensions;
+    const min = part.center.map((value, axis) => value - dimensions[axis] / 2);
+    const max = part.center.map((value, axis) => value + dimensions[axis] / 2);
     return makeBox(min, max);
   }
   if (part.primitive === 'sphere') {

@@ -1,4 +1,0 @@
-interface:
-  display_name: "Generate Basic CAD"
-  short_description: "Create and assemble simple CAD models"
-  default_prompt: "Use $generate-basic-cad to create a simple parametric CAD model with the requested backend."
