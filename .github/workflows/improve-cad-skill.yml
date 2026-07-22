@@ -1,0 +1,196 @@
+name: Improve CAD skill
+
+on:
+  workflow_dispatch:
+    inputs:
+      trials:
+        description: Independent target-agent trials per held-out CAD task
+        required: true
+        default: 3
+        type: number
+  schedule:
+    - cron: "17 4 * * 1"
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: improve-cad-skill-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  improve:
+    name: Train, evaluate, and propose
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    env:
+      AUTOMATION_BRANCH: automation/cad-skill-improvements
+      BASE_BRANCH: ${{ github.event.repository.default_branch }}
+      CAD_IMPROVE_TRIALS: ${{ github.event_name == 'workflow_dispatch' && inputs.trials || 3 }}
+
+    steps:
+      - name: Check out the default branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          ref: ${{ github.event.repository.default_branch }}
+          token: ${{ secrets.OUTFITTER_BOT_TOKEN || github.token }}
+
+      - name: Continue the automation branch
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.OUTFITTER_BOT_TOKEN || github.token }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          gh auth setup-git
+          if git ls-remote --exit-code --heads origin "$AUTOMATION_BRANCH" >/dev/null; then
+            git fetch origin "$AUTOMATION_BRANCH:refs/remotes/origin/$AUTOMATION_BRANCH"
+            git switch --create "$AUTOMATION_BRANCH" --track "origin/$AUTOMATION_BRANCH"
+            git merge --no-edit "origin/$BASE_BRANCH"
+          else
+            git switch --create "$AUTOMATION_BRANCH"
+          fi
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.19.0
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            examples/cad-skill/package-lock.json
+
+      - name: Install repository dependencies
+        run: |
+          npm ci
+          npm --prefix examples/cad-skill ci
+
+      - name: Build the pinned Outfitter v1 CLI
+        # ai-outfitter/actions@v1 targets legacy profiles; build the exact
+        # dotagents-capable v1 CLI until the corresponding action is released.
+        shell: bash
+        env:
+          OUTFITTER_V1_COMMIT: b4ee211dbe84a8d462485e892c6a6c21cd83ae07
+        run: |
+          git clone --no-checkout https://github.com/ai-outfitter/outfitter.git "$RUNNER_TEMP/outfitter-v1"
+          git -C "$RUNNER_TEMP/outfitter-v1" checkout "$OUTFITTER_V1_COMMIT"
+          test "$(git -C "$RUNNER_TEMP/outfitter-v1" rev-parse HEAD)" = "$OUTFITTER_V1_COMMIT"
+          npm --prefix "$RUNNER_TEMP/outfitter-v1" ci
+          npm --prefix "$RUNNER_TEMP/outfitter-v1" run build
+          mkdir -p "$RUNNER_TEMP/outfitter-bin"
+          ln -s "$RUNNER_TEMP/outfitter-v1/code/cli/dist/cli.js" "$RUNNER_TEMP/outfitter-bin/outfitter"
+          ln -s "$RUNNER_TEMP/outfitter-v1/node_modules/.bin/pi" "$RUNNER_TEMP/outfitter-bin/pi"
+          test -x "$RUNNER_TEMP/outfitter-bin/outfitter"
+          test -x "$RUNNER_TEMP/outfitter-bin/pi"
+          "$RUNNER_TEMP/outfitter-bin/outfitter" --version
+          "$RUNNER_TEMP/outfitter-bin/pi" --version
+          echo "$RUNNER_TEMP/outfitter-bin" >> "$GITHUB_PATH"
+
+      - name: Validate the CAD agent profile
+        run: outfitter validate --strict
+
+      - name: Verify the repository and CAD evaluator
+        run: |
+          npm test
+          npm --prefix examples/cad-skill test
+
+      - name: Run the CAD maintenance agent
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: >-
+          outfitter run cad --harness pi --strict -- --print --no-session
+          "Use the self-improve-cad skill to run exactly one CAD improvement cycle.
+          Use the workflow environment for the run id and trial count. Do not commit,
+          push, or open a pull request. Exit with a failure if training or evaluation fails."
+
+      - name: Verify the CAD improvement postcondition
+        env:
+          EXPECTED_RUN_ID: ${{ github.run_id }}-${{ github.run_attempt }}
+        run: |
+          npm --prefix examples/cad-skill run verify-output -- --run-id "$EXPECTED_RUN_ID"
+          outfitter validate --strict
+
+      - name: Upload raw Autoimprove evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cad-autoimprove-${{ github.run_id }}-${{ github.run_attempt }}
+          path: examples/cad-skill/.autoimprove/${{ github.run_id }}-${{ github.run_attempt }}/
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Verify the agent mutation scope
+        shell: bash
+        run: |
+          unexpected=()
+          while IFS= read -r status; do
+            path="${status:3}"
+            case "$path" in
+              .agents/agents/cad/skills/generate-replicad-cad/SKILL.md|\
+              examples/cad-skill/metrics/history.jsonl|\
+              examples/cad-skill/metrics/latest.json|\
+              examples/cad-skill/.autoimprove/*)
+                ;;
+              *)
+                unexpected+=("$status")
+                ;;
+            esac
+          done < <(git status --porcelain=v1 --untracked-files=all)
+
+          if (( ${#unexpected[@]} > 0 )); then
+            printf 'Unexpected agent mutation: %s\n' "${unexpected[@]}" >&2
+            exit 1
+          fi
+
+      - name: Detect reviewable changes
+        id: changes
+        shell: bash
+        run: |
+          if [[ -n "$(git status --porcelain -- \
+            .agents/agents/cad/skills/generate-replicad-cad/SKILL.md \
+            examples/cad-skill/metrics/history.jsonl \
+            examples/cad-skill/metrics/latest.json)" ]]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Commit and push the automation branch
+        if: steps.changes.outputs.changed == 'true'
+        id: publish
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.OUTFITTER_BOT_TOKEN || github.token }}
+        run: |
+          git add -- \
+            .agents/agents/cad/skills/generate-replicad-cad/SKILL.md \
+            examples/cad-skill/metrics/history.jsonl \
+            examples/cad-skill/metrics/latest.json
+          git diff --cached --quiet && exit 0
+          git commit -m "chore(cad): record automated skill improvement"
+          git push --set-upstream origin "$AUTOMATION_BRANCH"
+          echo "published=true" >> "$GITHUB_OUTPUT"
+
+      - name: Open or update the draft pull request
+        if: steps.publish.outputs.published == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.OUTFITTER_BOT_TOKEN || github.token }}
+        run: |
+          body="Automated Autoimprove history for the Replicad CAD skill. The deterministic gate may update the canonical skill; PR, RS, invalidity, and model/assembly slices are recorded in examples/cad-skill/metrics/latest.json. Raw evidence for the latest cycle is attached to ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}."
+          number="$(gh pr list --state open --head "$AUTOMATION_BRANCH" --json number --jq '.[0].number // empty')"
+          if [[ -n "$number" ]]; then
+            gh pr edit "$number" \
+              --title "chore(cad): automated Replicad skill improvements" \
+              --body "$body"
+          else
+            gh pr create \
+              --draft \
+              --base "$BASE_BRANCH" \
+              --head "$AUTOMATION_BRANCH" \
+              --title "chore(cad): automated Replicad skill improvements" \
+              --body "$body"
+          fi

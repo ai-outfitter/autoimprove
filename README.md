@@ -204,6 +204,12 @@ same seed, tasks, and deterministic runner reproduce the same batches and
 splits. Resuming from a state file requires the same seed; the trainer
 refuses to resume otherwise.
 
+## Examples
+
+See [examples/README.md](examples/README.md) for the compact word-transform
+loop and an Outfitter v1 `cad` profile whose Replicad skill improves against
+withheld CADTestBench-style model and assembly evaluations on a weekly schedule.
+
 ## Not in scope yet
 
 Meta-skill learning and slow-update variants from the paper are not

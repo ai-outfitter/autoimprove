@@ -1,0 +1,5 @@
+default_agent: cad
+default_harness: pi
+
+startup:
+  ascii_art: false

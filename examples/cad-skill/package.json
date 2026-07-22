@@ -1,0 +1,21 @@
+{
+  "name": "autoimprove-cad-skill-example",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.19.0"
+  },
+  "scripts": {
+    "pretrain": "npm --prefix ../.. run build",
+    "train": "node src/train.mjs",
+    "dry-run": "node src/train.mjs --dry-run",
+    "verify-output": "node scripts/verify-improvement-output.mjs",
+    "pretest": "npm --prefix ../.. run build",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "replicad": "0.23.1",
+    "replicad-opencascadejs": "0.23.0"
+  }
+}
